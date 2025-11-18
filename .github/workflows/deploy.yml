@@ -58,7 +58,7 @@ jobs:
             docker run -d \
               --name family-media \
               --restart unless-stopped \
-              -p 5000:5000 \
+              -p 80:5000 \
               adilmm/family-media:latest
             
             # Clean up old images
