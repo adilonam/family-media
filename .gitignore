@@ -162,6 +162,7 @@ static/uploads/
 static/media/
 user_uploads/
 family_media/
+FamilyFileVault/
 
 # Logs
 *.log
