@@ -170,6 +170,6 @@ def serve_file(filename):
 
 # --- Run the App ---
 if __name__ == '__main__':
-    # This makes the server accessible on your local machine
+    # This makes the server accessible on all network interfaces
     # Go to http://127.0.0.1:5000 or http://localhost:5000 in your browser
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
