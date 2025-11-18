@@ -25,3 +25,5 @@ FamilyFileVault/
 *.md
 .devcontainer
 
+## ssh keys
+*.pem

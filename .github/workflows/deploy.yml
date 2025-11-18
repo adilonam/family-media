@@ -1,0 +1,67 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: adilmm/family-media:latest
+          cache-from: type=registry,ref=adilmm/family-media:latest
+          cache-to: type=inline
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          ssh-keyscan -H 52.90.145.105 >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@52.90.145.105 << EOF
+            # Login to Docker Hub using access token
+            echo "${{ secrets.DOCKER_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin || true
+            
+            # Pull the latest image
+            docker pull adilmm/family-media:latest
+            
+            # Stop and remove existing container if it exists
+            docker stop family-media || true
+            docker rm family-media || true
+            
+            # Run the new container
+            docker run -d \
+              --name family-media \
+              --restart unless-stopped \
+              -p 5000:5000 \
+              adilmm/family-media:latest
+            
+            # Clean up old images
+            docker image prune -f
+          EOF
+
