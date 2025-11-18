@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Database</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; }
+        h1, h2 { border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        input { width: 300px; padding: 5px; }
+        button { padding: 5px 10px; }
+        .form-grid { display: grid; grid-template-columns: 120px 1fr; gap: 10px; margin-bottom: 20px; }
+        .result-item { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; background: #f9f9f9; }
+        .result-item p { margin: 0; }
+    </style>
+</head>
+<body>
+
+    <h1>Family Database</h1>
+
+    <h2>Add New File</h2>
+    <form id="addFileForm">
+        <div class="form-grid">
+            <label for="filename">File Name:</label>
+            <input type="text" id="filename" name="filename" placeholder="e.g., beach_trip_2025_01.jpg" required>
+
+            <label for="filepath">File Path:</label>
+            <input type="text" id="filepath" name="filepath" placeholder="e.g., /FamilyDatabase/Images/beach_trip_2025_01.jpg" required>
+            
+            <label for="description">Description:</label>
+            <input type="text" id="description" name="description" placeholder="e.g., Fun day at the beach">
+
+            <label for="tags">Tags (comma-separated):</label>
+            <input type="text" id="tags" name="tags" placeholder="e.g., Vacation, Beach, 2025" required>
+        </div>
+        <button type="submit">Add File to Database</button>
+    </form>
+    <p id="addFileStatus"></p>
+
+    <h2>Search by Tag</h2>
+    <form id="searchForm">
+        <input type="text" id="searchTag" placeholder="Enter tag to search...">
+        <button type="submit">Search</button>
+    </form>
+
+    <div id="results">
+        </div>
+
+    <script>
+        // --- Handle Search ---
+        document.getElementById('searchForm').addEventListener('submit', async function(event) {
+            event.preventDefault(); // Stop the form from reloading the page
+            
+            const tag = document.getElementById('searchTag').value;
+            const resultsDiv = document.getElementById('results');
+            
+            resultsDiv.innerHTML = '<p>Searching...</p>';
+            
+            // This 'fetch' call talks to our Flask server's /search route
+            const response = await fetch(`/search?tag=${encodeURIComponent(tag)}`);
+            const files = await response.json();
+            
+            if (files.error) {
+                resultsDiv.innerHTML = `<p>Error: ${files.error}</p>`;
+                return;
+            }
+            
+            if (files.length === 0) {
+                resultsDiv.innerHTML = '<p>No files found for that tag.</p>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = ''; // Clear 'Searching...'
+            
+            // Loop over the results and display them
+            files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                item.innerHTML = `
+                    <h3>${file.name}</h3>
+                    <p><strong>Description:</strong> ${file.description}</p>
+                    <p><strong>Path:</strong> ${file.path}</p>
+                `;
+                resultsDiv.appendChild(item);
+            });
+        });
+
+        // --- Handle Add File ---
+        document.getElementById('addFileForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            const statusP = document.getElementById('addFileStatus');
+            statusP.textContent = 'Adding file...';
+            
+            const formData = new FormData(this);
+            
+            // This 'fetch' call talks to our Flask server's /addfile route
+            const response = await fetch('/addfile', {
+                method: 'POST',
+                body: new URLSearchParams(formData) // Simple way to send form data
+            });
+            
+            const result = await response.json();
+            
+            if (result.error) {
+                statusP.textContent = `Error: ${result.error}`;
+            } else {
+                statusP.textContent = `Success: ${result.success}`;
+                document.getElementById('addFileForm').reset(); // Clear the form
+            }
+        });
+    </script>
+</body>
+</html>
+

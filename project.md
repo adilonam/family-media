@@ -569,6 +569,7 @@ python app.py
 	•	Go to that address (http://127.0.0.1:5000) in your web browser.
 You should now see your HTML page, and you can add file metadata and search for it using the database you built!
 
+### im here
 
 handling actual file uploads
 
@@ -832,7 +833,7 @@ links?
 This requires two changes:
 	•	Backend (app.py): We need to create a new, safe route that serves the files from your FamilyFileVault when a browser requests them.
 	•	Frontend (index.html): We need to change the JavaScript to create an <a> (link) tag pointing to that new route, instead of just printing the file's location on the hard drive.
-
+### im here
 the updated files.
 1. Updated app.py (The Flask Server)
 We'll import send_from_directory and url_for from Flask.
