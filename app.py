@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, url_for
 import database_manager as dbm
 import os
 from werkzeug.utils import secure_filename
+from PIL import Image
 
 # --- Configuration ---
 # Define the path where files will be saved
@@ -33,16 +34,14 @@ def index():
     # 'render_template' looks inside the 'templates' folder
     return render_template('index.html')
 
-# --- 2. Search API Route ---
+# --- 2. Search API Route (MODIFIED) ---
 @app.route('/search')
 def search():
     """
-    This route responds to search requests from the webpage.
+    This route now returns a usable URL for each file.
     It expects a 'tag' in the URL, like: /search?tag=Vacation
     """
-    # Get the 'tag' from the URL parameters
     tag_query = request.args.get('tag')
-    
     if not tag_query:
         return jsonify({"error": "No tag provided"}), 400
 
@@ -51,31 +50,31 @@ def search():
         try:
             files = dbm.search_files_by_tag(conn, tag_query)
             conn.close()
-            
-            # 'jsonify' turns the Python list of results into a format
-            # the web browser can understand.
-            # We'll format the results as a list of dictionaries.
             results = []
             for file in files:
-                file_path = file[2]
-                # Extract just the filename from the full path for the download link
-                filename = os.path.basename(file_path)
+                # file[4] is the ThumbnailPath
+                thumbnail_url = None
+                if file[4]:  # If ThumbnailPath is not None
+                    # Get just the filename (e.g., "thumb_beach.jpg")
+                    thumb_name = os.path.basename(file[4])
+                    thumbnail_url = url_for('serve_file', filename=thumb_name)
+                
                 results.append({
                     "id": file[0],
                     "name": file[1],
-                    "path": file_path,
-                    "filename": filename,  # Add filename for download link
-                    "description": file[3]
+                    "description": file[3],
+                    "url": url_for('serve_file', filename=file[1]),
+                    "thumbnail_url": thumbnail_url  # <--- ADD THE NEW URL
                 })
             return jsonify(results)
-    
+        
         except Exception as e:
             conn.close()
             return jsonify({"error": str(e)}), 500
             
     return jsonify({"error": "Could not connect to database"}), 500
 
-# --- 3. Add File API Route (MODIFIED) ---
+# --- 4. Add File API Route ---
 @app.route('/addfile', methods=['POST'])
 def add_file_route():
     """
@@ -110,10 +109,31 @@ def add_file_route():
         if os.path.exists(save_path):
             return jsonify({"error": f"File '{filename}' already exists."}), 400
 
+        # --- New Thumbnail Variables ---
+        thumbnail_save_path = None
+        thumbnail_filename = None
+
         conn = None
         try:
             # --- 1. Save the actual file ---
             file.save(save_path)
+
+            # --- Thumbnail Generation Logic ---
+            mime_type = file.content_type if hasattr(file, 'content_type') else 'application/octet-stream'
+            if mime_type and mime_type.startswith('image/'):
+                try:
+                    thumbnail_filename = f"thumb_{filename}"
+                    thumbnail_save_path = os.path.join(app.config['UPLOAD_FOLDER'], thumbnail_filename)
+                    
+                    # Open the saved image, create a thumbnail, and save it
+                    with Image.open(save_path) as im:
+                        im.thumbnail((200, 200))  # Max size 200x200
+                        im.save(thumbnail_save_path)
+                    print(f"Thumbnail created at: {thumbnail_save_path}")
+                except Exception as e:
+                    print(f"Warning: Could not create thumbnail. {e}")
+                    thumbnail_save_path = None  # Failed, so set back to None
+            # --- End Thumbnail Logic ---
             
             # --- 2. Add metadata to database ---
             conn = dbm.create_connection()
@@ -121,19 +141,21 @@ def add_file_route():
                 # If database connection fails, try to delete the file we just saved
                 if os.path.exists(save_path):
                     os.remove(save_path)
+                if thumbnail_save_path and os.path.exists(thumbnail_save_path):
+                    os.remove(thumbnail_save_path)
                 return jsonify({"error": "Could not connect to database"}), 500
 
-            # Get file type and MIME type
             file_type = filename.split('.')[-1].upper() if '.' in filename else 'Unknown'
-            mime_type = getattr(file, 'content_type', None) or 'application/octet-stream'
 
+            # --- Pass the thumbnail path to the database ---
             new_file_id = dbm.add_file(
                 conn,
                 file_name=filename,
                 file_path=save_path, # Store the *actual save path*
                 file_type=file_type,
                 mime_type=mime_type,
-                description=description
+                description=description,
+                thumbnail_path=thumbnail_save_path  # Pass the new path
             )
             
             if new_file_id:
@@ -147,25 +169,24 @@ def add_file_route():
             return jsonify({"success": f"File '{filename}' uploaded and added with ID {new_file_id}"})
 
         except Exception as e:
-            # If database insert fails, try to delete the file we just saved
+            # Clean up if something went wrong
             if os.path.exists(save_path):
                 os.remove(save_path)
+            if thumbnail_save_path and os.path.exists(thumbnail_save_path):
+                os.remove(thumbnail_save_path)  # Also remove the thumbnail
             if conn:
                 conn.close()
             return jsonify({"error": str(e)}), 500
 
     return jsonify({"error": "An unknown error occurred"}), 500
 
-# --- 4. Serve Files Route ---
-@app.route('/files/<filename>')
+# --- 3. NEW Route to Serve Files ---
+@app.route('/files/<path:filename>')
 def serve_file(filename):
     """
-    Safely serve files from the UPLOAD_FOLDER.
-    This allows the file paths in search results to be clickable links.
+    This new route securely serves files from your UPLOAD_FOLDER.
     """
-    # Use secure_filename to prevent directory traversal attacks
-    safe_filename = secure_filename(filename)
-    return send_from_directory(app.config['UPLOAD_FOLDER'], safe_filename)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 # --- Run the App ---

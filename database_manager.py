@@ -24,6 +24,7 @@ def create_tables(conn):
         FileID INTEGER PRIMARY KEY AUTOINCREMENT,
         FileName TEXT NOT NULL,
         FilePath TEXT NOT NULL UNIQUE,
+        ThumbnailPath TEXT,
         FileType TEXT,
         MIMEType TEXT,
         DateAdded TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -58,16 +59,16 @@ def create_tables(conn):
         print(f"Error creating tables: {e}")
 
 
-def add_file(conn, file_name, file_path, file_type, mime_type, description=""):
+def add_file(conn, file_name, file_path, file_type, mime_type, description="", thumbnail_path=None):
     """
     Add a new file to the Files table.
     Returns the FileID of the newly added file.
     """
-    sql = ''' INSERT INTO Files(FileName, FilePath, FileType, MIMEType, Description)
-              VALUES(?,?,?,?,?) '''
+    sql = ''' INSERT INTO Files(FileName, FilePath, FileType, MIMEType, Description, ThumbnailPath)
+              VALUES(?,?,?,?,?,?) '''
     try:
         cur = conn.cursor()
-        cur.execute(sql, (file_name, file_path, file_type, mime_type, description))
+        cur.execute(sql, (file_name, file_path, file_type, mime_type, description, thumbnail_path))
         conn.commit()
         return cur.lastrowid
     except sqlite3.IntegrityError:
@@ -137,7 +138,8 @@ def search_files_by_tag(conn, tag_name):
         Files.FileID,
         Files.FileName,
         Files.FilePath,
-        Files.Description
+        Files.Description,
+        Files.ThumbnailPath
     FROM Files
     JOIN FileTags_Link ON Files.FileID = FileTags_Link.FileID
     JOIN Tags ON FileTags_Link.TagID = Tags.TagID

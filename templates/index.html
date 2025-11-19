@@ -12,6 +12,26 @@
         .form-grid { display: grid; grid-template-columns: 120px 1fr; gap: 10px; margin-bottom: 20px; }
         .result-item { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; background: #f9f9f9; }
         .result-item p { margin: 0; }
+        /* Add a style for our new link */
+        .result-item a { 
+            display: inline-block; 
+            margin-top: 10px; 
+            font-weight: bold; 
+            text-decoration: none;
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        .result-item a:hover { background-color: #0056b3; }
+        /* Add style for our new thumbnail */
+        .result-item img {
+            max-width: 200px;
+            max-height: 200px;
+            float: right;
+            margin-left: 15px;
+            border: 1px solid #ddd;
+        }
     </style>
 </head>
 <body>
@@ -69,18 +89,23 @@
             
             resultsDiv.innerHTML = ''; // Clear 'Searching...'
             
-            // Loop over the results and display them
             files.forEach(file => {
                 const item = document.createElement('div');
                 item.className = 'result-item';
-                // Create a clickable link to the file
-                const fileLink = file.filename ? 
-                    `<a href="/files/${encodeURIComponent(file.filename)}" target="_blank">${file.filename}</a>` : 
-                    file.path;
+                
+                // --- Create thumbnail HTML (if it exists) ---
+                let thumbnailHtml = '';
+                if (file.thumbnail_url) {
+                    thumbnailHtml = `<img src="${file.thumbnail_url}" alt="Thumbnail for ${file.name}">`;
+                }
+
                 item.innerHTML = `
+                    ${thumbnailHtml}
                     <h3>${file.name}</h3>
                     <p><strong>Description:</strong> ${file.description || 'No description'}</p>
-                    <p><strong>File:</strong> ${fileLink}</p>
+                    <a href="${file.url}" target="_blank" rel="noopener noreferrer">
+                        Open File
+                    </a>
                 `;
                 resultsDiv.appendChild(item);
             });
