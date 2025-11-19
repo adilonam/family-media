@@ -32,11 +32,19 @@
             margin-left: 15px;
             border: 1px solid #ddd;
         }
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        .header a { color: #dc3545; }
     </style>
 </head>
 <body>
 
-    <h1>Family Database</h1>
+    <div class="header">
+        <h1>Family Database</h1>
+        <div>
+            Logged in as: <strong>{{ current_user.username }}</strong>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </div>
 
     <h2>Add New File</h2>
     <form id="addFileForm" enctype="multipart/form-data">
@@ -49,6 +57,8 @@
 
             <label for="tags">Tags (comma-separated):</label>
             <input type="text" id="tags" name="tags" placeholder="e.g., Vacation, Beach, 2025" required>
+            <label for="is_private">Private:</label>
+            <input type="checkbox" id="is_private" name="is_private" value="true">
         </div>
         <button type="submit">Upload and Add File</button>
     </form>
@@ -83,7 +93,7 @@
             }
             
             if (files.length === 0) {
-                resultsDiv.innerHTML = '<p>No files found for that tag.</p>';
+                resultsDiv.innerHTML = '<p>No files found for that tag. (Or you may not have permission)</p>';
                 return;
             }
             
